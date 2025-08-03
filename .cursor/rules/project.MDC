@@ -1,0 +1,304 @@
+---
+description: Flutter101 项目编码规范与架构原则
+globs:
+alwaysApply: yes
+---
+
+# Flutter101 项目编码规范与架构原则
+
+## 🏗️ 核心架构原则
+
+### 1. GetX 生态系统优先
+- **状态管理**: 强制使用 GetxController 和 Obx/GetBuilder
+- **依赖注入**: 必须使用 Get.put、Get.lazyPut 和 Bindings
+- **路由系统**: 使用 GetMaterialApp 和 GetPage
+- **网络状态**: 使用 controller.obx() 模式处理加载/错误/成功状态
+
+### 2. Feature-First 目录结构
+```
+lib/
+├── app/
+│   ├── core/
+│   │   ├── services/     # 全局服务 (NetworkService, etc.)
+│   │   ├── utils/        # 工具类
+│   │   └── constants/    # 常量
+│   ├── data/
+│   │   ├── models/       # Freezed 数据模型
+│   │   └── services/     # API 服务
+│   ├── routes/           # 路由配置
+│   └── theme/            # 主题配置
+└── features/
+    └── [feature_name]/
+        ├── controllers/  # GetxController
+        ├── views/        # UI 界面
+        └── bindings/     # 依赖绑定
+```
+
+### 3. 数据模型规范
+- **必须使用 Freezed**: 所有数据模型都必须用 @freezed 注解
+- **JSON 序列化**: 使用 json_annotation 和 json_serializable
+- **不可变性**: 利用 Freezed 确保数据不可变性
+
+## 📝 编码规范
+
+### Controller 层规范
+```dart
+// ✅ 正确的 Controller 写法
+class HomeController extends GetxController with StateMixin<DataType> {
+  final ApiService _apiService = Get.find<ApiService>();
+  
+  @override
+  void onInit() {
+    super.onInit();
+    loadData();
+  }
+  
+  void loadData() async {
+    try {
+      change(null, status: RxStatus.loading());
+      final data = await _apiService.getData();
+      change(data, status: RxStatus.success());
+    } catch (e) {
+      change(null, status: RxStatus.error(e.toString()));
+    }
+  }
+}
+```
+
+### View 层规范
+```dart
+// ✅ 正确的 View 写法
+class HomeView extends GetView<HomeController> {
+  const HomeView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Title')),
+      body: controller.obx(
+        (data) => _buildSuccessContent(data!),
+        onLoading: _buildLoadingContent(),
+        onError: (error) => _buildErrorContent(error!),
+        onEmpty: _buildEmptyContent(),
+      ),
+    );
+  }
+}
+```
+
+### Binding 层规范
+```dart
+// ✅ 正确的 Binding 写法
+class HomeBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<ApiService>(() => ApiService());
+    Get.lazyPut<HomeController>(() => HomeController());
+  }
+}
+```
+
+### 网络服务规范
+- **统一网络服务**: 使用 NetworkService 封装 Dio
+- **错误处理**: 在 NetworkService 层统一处理网络错误
+- **拦截器**: 合理使用 Dio 拦截器处理日志和错误
+
+## 🚫 禁止的做法
+
+### 状态管理
+- ❌ 不要使用 StatefulWidget 管理业务逻辑
+- ❌ 不要直接使用 setState
+- ❌ 不要混用其他状态管理方案 (Provider, Bloc, Riverpod)
+
+### 依赖管理
+- ❌ 不要直接实例化 Controller: `HomeController()`
+- ❌ 不要在 Widget 中创建服务实例
+- ❌ 不要跳过 Binding 层直接注入依赖
+
+### UI 层
+- ❌ 不要在 View 中处理业务逻辑
+- ❌ 不要在 View 中直接调用 API
+- ❌ 不要硬编码字符串和样式
+
+### 国际化
+- ❌ 不要在 UI 中硬编码文本字符串
+- ❌ 不要直接使用 Localizations.of(context)
+- ❌ 不要忘记为新字符串添加翻译
+- ❌ 不要使用不一致的语言代码格式
+
+## 🎯 最佳实践
+
+### 1. 响应式编程
+```dart
+// ✅ 使用 Rx 变量
+final RxBool isLoading = false.obs;
+final RxString message = ''.obs;
+final RxList<Item> items = <Item>[].obs;
+
+// ✅ 在 UI 中使用 Obx
+Obx(() => Text(controller.message.value))
+```
+
+### 2. 状态处理
+```dart
+// ✅ 使用 StateMixin 处理异步状态
+class MyController extends GetxController with StateMixin<MyData> {
+  void loadData() async {
+    change(null, status: RxStatus.loading());
+    // ... API 调用
+    change(data, status: RxStatus.success());
+  }
+}
+```
+
+### 3. 路由管理
+```dart
+// ✅ 使用命名路由
+Get.toNamed(AppRoutes.home);
+Get.offNamed(AppRoutes.login);
+Get.offAllNamed(AppRoutes.home);
+
+// ✅ 传递参数
+Get.toNamed(AppRoutes.details, arguments: {'id': 123});
+```
+
+### 4. 主题管理
+```dart
+// ✅ 使用 GetX 主题切换
+Get.changeThemeMode(ThemeMode.dark);
+Get.isDarkMode; // 检查当前主题
+```
+
+### 5. 国际化
+```dart
+// ✅ 使用 GetX 国际化
+Get.updateLocale(const Locale('zh', 'CN'));
+
+// ✅ 在 UI 中使用翻译文本
+Text('welcome_title'.tr)
+
+// ✅ 带参数的翻译
+Text('theme_switched'.trParams({'mode': 'dark'}))
+
+// ✅ 语言切换
+final localizationService = Get.find<LocalizationService>();
+localizationService.toggleLanguage();
+```
+
+### 6. 国际化最佳实践
+```dart
+// ✅ 创建完整的翻译映射
+class AppTranslations extends Translations {
+  @override
+  Map<String, Map<String, String>> get keys => {
+    'en_US': {'welcome': 'Welcome'},
+    'zh_CN': {'welcome': '欢迎'},
+  };
+}
+
+// ✅ 使用 LocalizationService 管理语言状态
+class LocalizationService extends GetxService {
+  void changeLanguage(String languageCode) {
+    // 实现语言切换逻辑
+  }
+}
+
+// ✅ 在 Controller 中使用国际化
+class MyController extends GetxController {
+  void showMessage() {
+    Get.snackbar('success'.tr, 'operation_completed'.tr);
+  }
+}
+```
+
+## 🔧 工具和依赖
+
+### 必需依赖
+- `get: ^4.6.6` - GetX 核心
+- `dio: ^5.4.0` - 网络请求
+- `freezed: ^2.4.6` - 数据模型
+- `json_annotation: ^4.8.1` - JSON 序列化
+- `get_storage: ^2.1.1` - 本地存储
+- `flutter_localizations` - 国际化支持
+- `intl` - 国际化工具
+
+### 推荐依赖
+- `flutter_lints: ^5.0.0` - 代码规范
+- `build_runner: ^2.4.7` - 代码生成
+
+## 📱 UI/UX 指导
+
+### 设计原则
+- 使用 Material 3 设计规范
+- 支持明暗主题切换
+- 响应式设计，适配不同屏幕尺寸
+- 优雅的加载和错误状态处理
+
+### 交互反馈
+- 使用 GetX 的 snackbar: `Get.snackbar()`
+- 使用 GetX 的 dialog: `Get.dialog()`
+- 合理的加载指示器和错误提示
+
+## 🧪 测试指导
+
+### 单元测试
+- 为每个 Controller 编写单元测试
+- 使用 GetX 的测试工具
+- Mock 外部依赖 (API 服务)
+
+### Widget 测试
+- 测试 UI 交互和状态变化
+- 使用 `testWidgets` 和 GetX testing utilities
+
+## 📚 新功能开发流程
+
+1. **创建 Feature 目录结构**
+   ```
+   features/new_feature/
+   ├── controllers/
+   ├── views/
+   └── bindings/
+   ```
+
+2. **定义数据模型** (如果需要)
+   - 使用 Freezed 创建不可变模型
+   - 添加 JSON 序列化支持
+
+3. **创建 Controller**
+   - 继承 GetxController
+   - 使用 StateMixin 处理异步状态
+   - 实现业务逻辑方法
+
+4. **创建 View**
+   - 继承 GetView<ControllerType>
+   - 使用 controller.obx() 处理状态
+   - 保持 UI 纯净，不包含业务逻辑
+
+5. **创建 Binding**
+   - 注册所需的服务和 Controller
+   - 使用 lazyPut 进行懒加载
+
+6. **更新路由配置**
+   - 在 AppRoutes 中添加路由常量
+   - 在 AppPages 中添加路由配置
+
+## 🔍 代码审查检查清单
+
+- [ ] 是否正确使用了 GetX 架构模式？
+- [ ] Controller 是否正确处理了异步状态？
+- [ ] View 是否正确使用了 controller.obx()？
+- [ ] 是否正确配置了 Binding？
+- [ ] 数据模型是否使用了 Freezed？
+- [ ] 网络请求是否通过 NetworkService？
+- [ ] 是否有适当的错误处理？
+- [ ] UI 是否支持加载和错误状态？
+- [ ] 代码是否遵循了命名规范？
+- [ ] 是否有适当的注释和文档？
+- [ ] 所有用户可见文本是否使用了国际化？
+- [ ] 是否为所有支持的语言添加了翻译？
+- [ ] 语言切换功能是否正常工作？
+- [ ] 国际化文本是否使用了一致的 key 命名？
+
+---
+
+**记住**: 这些规范不仅仅是建议，而是项目的强制要求。所有新代码都必须严格遵循这些原则，以确保代码库的一致性和可维护性。并根据新增加的feature，更新项目编码规范与架构原则，并更新.cursor/rules/project.MDC文件。
