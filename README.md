@@ -133,29 +133,82 @@ class HomeBinding extends Bindings {
 
 ## 🛠️ 开发指南
 
-### 安装依赖
+### 快速开始
+
 ```bash
+# 使用脚本管理器（推荐）
+dart run scripts/script_manager.dart
+
+# 或使用 Makefile
+make help
+```
+
+### 🚀 脚本工具
+
+本项目提供了完整的 Dart 脚本工具集，支持：
+
+- **🏗️ 项目初始化**: 一键修改项目名、包名、应用名
+- **📄 页面生成器**: 快速生成 GetX 页面（Controller、View、Binding）
+- **📦 模型生成器**: 生成 Freezed 数据模型
+- **⚙️ 服务生成器**: 生成服务类
+- **🌐 翻译管理器**: 管理多语言翻译
+- **🔧 构建工具**: 项目构建和维护
+
+#### 常用命令
+
+```bash
+# 新项目设置
+make init          # 初始化项目信息
+make setup         # 设置开发环境
+
+# 快速生成
+make page name=user_profile    # 生成页面
+make model name=user           # 生成模型
+make service name=user_api     # 生成服务
+
+# 翻译管理
+make trans-check               # 检查翻译完整性
+make trans-add key=hello en='Hello' zh='你好'  # 添加翻译
+
+# 项目维护
+make clean         # 清理项目
+make build         # 构建应用
+make run-web       # 运行 Web 应用
+```
+
+详细使用指南请查看：[脚本工具文档](docs/scripts-guide.md)
+
+### 传统方式
+
+```bash
+# 安装依赖
 flutter pub get
-```
 
-### 代码生成
-```bash
+# 代码生成
 flutter packages pub run build_runner build
-```
 
-### 运行应用
-```bash
-# Web
-flutter run -d chrome
-
-# iOS 模拟器
-flutter run -d ios
-
-# Android
-flutter run -d android
+# 运行应用
+flutter run -d chrome    # Web
+flutter run -d ios       # iOS
+flutter run -d android   # Android
 ```
 
 ### 添加新功能
+
+#### 🚀 使用脚本工具（推荐）
+
+```bash
+# 生成完整的功能页面
+make page name=new_feature
+
+# 生成数据模型
+make model name=new_model
+
+# 生成服务类
+make service name=new_service
+```
+
+#### 📝 手动创建
 
 1. **创建功能目录**:
    ```
@@ -165,7 +218,7 @@ flutter run -d android
    └── bindings/
    ```
 
-2. **定义数据模型** (如果需要):
+2. **定义数据模型** (或使用模型生成器):
    ```dart
    @freezed
    class NewModel with _$NewModel {
